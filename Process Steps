@@ -1,0 +1,22 @@
+Process Steps
+1) Understanding Requirements: Initially, I familiarized myself with the reporting requirements outlined by Bank Negara. This included understanding the specific data needed, report formats, and submission deadlines.
+
+2) Learning SQL: I acquired SQL skills to query the company's database effectively. This involved understanding database structures, querying techniques, and data manipulation functionalities.
+
+3) Data Extraction and Transformation: Using SQL, I crafted queries to extract relevant data from the company's database. This data included financial transactions, account details, or other pertinent information required for the reports. I then transformed this raw data into usable formats as per Bank Negara's specifications.
+
+4) Automating Weekly Report:
+
+SQL Query Development: I developed SQL queries to automatically generate the weekly report. This involved calculating various metrics, summarizing data, and arranging it in the required format.
+Scheduling Automation Tasks: Utilizing SQL job scheduling tools, I set up automated tasks to run the queries at specific intervals, generating the weekly report without manual intervention.
+Automating Monthly Report:
+
+Similar SQL Automation: Similar to the weekly report, I designed SQL queries to compile and structure the monthly report. This involved different aggregation levels or metrics compared to the weekly report.
+Implementing Security Measures: Understanding the sensitivity of the data, I ensured that appropriate security measures were in place throughout the reporting process to protect the confidentiality and integrity of the information.
+
+Review and Submission Support: I assisted in the review process to validate the accuracy of the generated reports before submission to Bank Negara. Once approved, these reports were submitted in compliance with Bank Negara's guidelines and deadlines.
+
+Learning Outcomes
+Skill Development: Through this experience, I honed my SQL skills and gained practical knowledge in automating reporting tasks.
+Understanding Workflow: I grasped the workflow involved in data extraction, transformation, and report generation within a secure and regulated environment.
+Contributing to Efficiency: My contribution in automating the reporting process helped enhance efficiency and accuracy while ensuring compliance with regulatory requirements.
