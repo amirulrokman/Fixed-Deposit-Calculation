@@ -7,10 +7,7 @@ The SQL script is designed to categorize fixed deposits into aging buckets based
 
 SQL Query Steps
 **Step 1: Get the Current Date**
-sql
-
-DECLARE @reporting_date DATE
-SET @reporting_date = GETDATE()
+This allows for user input or parameters to specify a desired reporting date
 
 **Step 2: Categorize Fixed Deposits into Aging Buckets**
 A Common Table Expression (CTE) is used to classify fixed deposits into aging buckets based on the difference between their maturity dates and the reporting date.
