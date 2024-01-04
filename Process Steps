@@ -1,22 +1,129 @@
-Process Steps
-1) Understanding Requirements: Initially, I familiarized myself with the reporting requirements outlined by Bank Negara. This included understanding the specific data needed, report formats, and submission deadlines.
+DECLARE @reporting_date DATE
+SET @reporting_date = '2023-12-22' -- Change this date as needed
 
-2) Learning SQL: I acquired SQL skills to query the company's database effectively. This involved understanding database structures, querying techniques, and data manipulation functionalities.
+DROP TABLE IF EXISTS #temp_weekly_interest
 
-3) Data Extraction and Transformation: Using SQL, I crafted queries to extract relevant data from the company's database. This data included financial transactions, account details, or other pertinent information required for the reports. I then transformed this raw data into usable formats as per Bank Negara's specifications.
+CREATE TABLE #temp_weekly_interest(
+    Items VARCHAR(80),
+    weekly_interest DECIMAL(6,4)
+)
 
-4) Automating Weekly Report:
+;WITH WeightedAverages AS (
+    SELECT 
+        'Marketable Debt Securities' AS ProductType,
+        SUM(
+            CASE 
+                WHEN coupon_rate IS NOT NULL THEN principal_amt_myr * coupon_rate
+                ELSE principal_amt_myr * yield_rate 
+            END
+        ) / SUM(principal_amt_myr) AS weighted_avg
+    FROM x
+    WHERE position_dt = @reporting_date
+    AND product IN ('CP', 'FCY BONDS', 'FCY MTN', 'MTN')
+    UNION ALL
+    SELECT 
+        'Corporate Debt Securities' AS ProductType,
+        SUM(
+            CASE 
+                WHEN coupon_rate IS NOT NULL THEN principal_amt_myr * coupon_rate
+                ELSE principal_amt_myr * yield_rate 
+            END
+        ) / SUM(principal_amt_myr) AS weighted_avg
+    FROM x
+    WHERE position_dt = @reporting_date
+    AND product IN ('CP', 'FCY BONDS', 'FCY MTN', 'MTN')
+    AND risk_party <> 'CAGAMAS - KUL'
+    UNION ALL
+    SELECT 
+        'MGS' AS ProductType,
+        SUM(principal_amt_myr * coupon_rate) / SUM(principal_amt_myr) AS weighted_avg
+    FROM x
+    WHERE position_dt = @reporting_date
+    AND product = 'MGS'
+    UNION ALL
+    SELECT 
+        'Cagamas Bonds' AS ProductType,
+        SUM(principal_amt_myr * coupon_rate) / SUM(principal_amt_myr) AS weighted_avg
+    FROM x
+    WHERE position_dt = @reporting_date
+    AND product = 'MTN' 
+    AND risk_party = 'CAGAMAS - KUL'
+    UNION ALL
+    SELECT 
+        'FD' AS ProductType,
+        SUM(principal_amt_myr * coupon_rate) / SUM(principal_amt_myr) AS weighted_avg
+    FROM x
+    WHERE position_dt = @reporting_date
+    UNION ALL
+    SELECT 
+        'Interbank Borrowings' AS ProductType,
+        SUM(principal_amt_myr * coupon_rate) / SUM(principal_amt_myr) AS weighted_avg
+    FROM x
+    WHERE position_dt = @reporting_date
+)
+INSERT INTO #temp_weekly_interest (Items, weekly_interest)
+SELECT 
+    CASE 
+        WHEN ProductType = 'Marketable Debt Securities' THEN 'Weighted Average Return on Marketable Debt Securities Outstanding'
+        WHEN ProductType = 'Corporate Debt Securities' THEN 'Weighted Average Return on Corporate Debt Securities Outstanding'
+        WHEN ProductType = 'MGS' THEN 'Weighted Average Return on MGS Outstanding'
+        WHEN ProductType = 'Cagamas Bonds' THEN 'Weighted Average Return on Cagamas Bonds Outstanding'
+        WHEN ProductType = 'FD' THEN 'Weighted Average Rate on FD Outstanding'
+        WHEN ProductType = 'Interbank Borrowings' THEN 'Weighted Average Rate on Interbank Borrowings Outstanding'
+    END AS Items,
+    ROUND(weighted_avg, 4) AS weekly_interest
+FROM WeightedAverages
 
-SQL Query Development: I developed SQL queries to automatically generate the weekly report. This involved calculating various metrics, summarizing data, and arranging it in the required format.
-Scheduling Automation Tasks: Utilizing SQL job scheduling tools, I set up automated tasks to run the queries at specific intervals, generating the weekly report without manual intervention.
-Automating Monthly Report:
+SELECT *
+FROM #temp_weekly_interest
 
-Similar SQL Automation: Similar to the weekly report, I designed SQL queries to compile and structure the monthly report. This involved different aggregation levels or metrics compared to the weekly report.
-Implementing Security Measures: Understanding the sensitivity of the data, I ensured that appropriate security measures were in place throughout the reporting process to protect the confidentiality and integrity of the information.
+-- Get the current date
+DECLARE @reporting_date DATE
+SET @reporting_date = GETDATE()
 
-Review and Submission Support: I assisted in the review process to validate the accuracy of the generated reports before submission to Bank Negara. Once approved, these reports were submitted in compliance with Bank Negara's guidelines and deadlines.
+-- CTE to categorize fixed deposits into aging buckets
+;WITH FixedDeposits AS (
+    SELECT 
+        counterparty_nm,
+        value_dt, 
+        CASE
+            WHEN ABS(DATEDIFF(day, maturity_dt, value_dt)) < 32 THEN 'LE 1 Month'
+            WHEN ABS(DATEDIFF(day, maturity_dt, value_dt)) < 91 THEN 'GT 1 Month to 3 Months'
+            WHEN ABS(DATEDIFF(day, maturity_dt, value_dt)) < 181 THEN 'GT 3 Months to 6 Months'
+            WHEN ABS(DATEDIFF(day, maturity_dt, value_dt)) < 274 THEN 'GT 6 Months to 9 Months'
+            WHEN ABS(DATEDIFF(day, maturity_dt, value_dt)) < 365 THEN 'GT 9 Months to 12 Months'
+            ELSE 'GT 1 Year to 3 Year'
+        END AS ageing_bucket,
+        principal_amt_myr,
+        (principal_amt_myr * coupon_rate) AS Product
+    FROM x
+    WHERE position_dt = @reporting_date -- Use the automated reporting date
+)
 
-Learning Outcomes
-Skill Development: Through this experience, I honed my SQL skills and gained practical knowledge in automating reporting tasks.
-Understanding Workflow: I grasped the workflow involved in data extraction, transformation, and report generation within a secure and regulated environment.
-Contributing to Efficiency: My contribution in automating the reporting process helped enhance efficiency and accuracy while ensuring compliance with regulatory requirements.
+-- CTE to determine the maximum value_date for each aging bucket
+, MaxValueDate AS (
+    SELECT MAX(value_dt) AS value_date, ageing_bucket
+    FROM FixedDeposits
+    GROUP BY ageing_bucket
+)
+
+-- CTE to calculate total principal and product for each aging bucket and value_date
+, FDData AS (
+    SELECT 
+        depo.value_date, 
+        depo.ageing_bucket, 
+        SUM(principal_amt_myr) AS total_principal, 
+        SUM(Product) AS total_product
+    FROM FixedDeposits tab
+    INNER JOIN MaxValueDate depo ON tab.value_dt = depo.value_date AND tab.ageing_bucket = depo.ageing_bucket
+    GROUP BY depo.value_date, depo.ageing_bucket
+)
+
+-- Final query to calculate weekly interest rates for aging buckets 
+SELECT 
+    value_date, 
+    ageing_bucket,  
+    CAST(SUM(total_product) / SUM(total_principal) AS DECIMAL(6,4)) AS weekly_interest
+FROM FDData
+GROUP BY ageing_bucket, value_date
+ORDER BY value_date DESC
