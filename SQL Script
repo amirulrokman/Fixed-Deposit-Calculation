@@ -32,7 +32,7 @@ CREATE TABLE #temp_weekly_interest(
     FROM x
     WHERE position_dt = @reporting_date
     AND product IN ('CP', 'FCY BONDS', 'FCY MTN', 'MTN')
-    AND risk_party <> 'CAGAMAS - KUL'
+    AND risk_party <> 'a'
     UNION ALL
     SELECT 
         'MGS' AS ProductType,
@@ -47,7 +47,7 @@ CREATE TABLE #temp_weekly_interest(
     FROM x
     WHERE position_dt = @reporting_date
     AND product = 'MTN' 
-    AND risk_party = 'CAGAMAS - KUL'
+    AND risk_party = 'a'
     UNION ALL
     SELECT 
         'FD' AS ProductType,
